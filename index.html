@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pokédex</title>
+    <link rel="stylesheet" href="fonts.css">
+    <link rel="stylesheet" href="style.css">
+    <script src="db.js"></script>
+    <script src="template.js"></script>
+    <script src="script.js"></script>
+</head>
+
+<body onload="init()">
+    <header class="header">
+        <div class="header-inner">
+            <div class="logo">
+                <span class="logo-lens"></span>
+                <h1 class="logo-title">Pokédex</h1>
+            </div>
+            <div class="search-bar">
+                <input data-id="search-input" id="searchInput" class="search-input" type="text"
+                    placeholder="Search Pokémon" oninput="checkSearchInput()" onkeydown="handleSearchKey(event)">
+                <button data-id="search-button" id="searchButton" class="search-button" onclick="searchPokemon()"
+                    disabled>Search</button>
+            </div>
+        </div>
+        <nav id="typeButtons" class="type-buttons"></nav>
+    </header>
+
+    <main data-id="content" class="content">
+        <p id="errorMessage" class="error-message d-none"></p>
+        <section id="cardContainer" class="card-container"></section>
+        <button data-id="load-more-button" id="loadMoreButton" class="load-more-button" onclick="loadPokemon()">
+            Load more Pokémon
+        </button>
+    </main>
+
+    <div id="loadingScreen" class="loading-screen d-none">
+        <div class="pokeball-spinner"></div>
+        <p class="loading-text">Loading Pokémon...</p>
+    </div>
+
+    <dialog data-id="dialog" id="pokemonDialog" class="pokemon-dialog"></dialog>
+</body>
+
+</html>
