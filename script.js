@@ -21,8 +21,6 @@ async function init() {
     await loadPokemon();
 }
 
-// ---------- Cache ----------
-
 function loadCacheFromStorage() {
     try {
         const storedCache = sessionStorage.getItem(CACHE_KEY);
@@ -39,8 +37,6 @@ function saveCacheToStorage() {
         console.warn("Cache could not be saved", error);
     }
 }
-
-// ---------- Loading ----------
 
 async function loadPokemon() {
     await runWithLoading(loadNextBatch);
@@ -176,8 +172,6 @@ function getStatValue(stats, statName) {
     return stat ? stat.base_stat : 0;
 }
 
-// ---------- Render & filter ----------
-
 function renderTypeButtons() {
     let buttonsHtml = "";
     POKEMON_TYPES.forEach((type) => {
@@ -234,8 +228,6 @@ function hasMoreOfType(type) {
     return getTypeLoadedNames(type).length < entries.length;
 }
 
-// ---------- Search ----------
-
 function getSearchValue() {
     return document.getElementById("searchInput").value.trim().toLowerCase();
 }
@@ -274,8 +266,6 @@ async function loadSearchResults() {
     searchResultNames = await fetchAllDetails(searchMatches.slice(0, LOAD_LIMIT));
     saveCacheToStorage();
 }
-
-// ---------- Suggestions ----------
 
 async function updateSuggestions() {
     if (getSearchValue().length < 3) {
@@ -322,8 +312,6 @@ function selectSuggestion(name) {
 function handleOutsideClick(event) {
     if (!event.target.closest(".search-bar")) hideSuggestions();
 }
-
-// ---------- Dialog ----------
 
 function addDialogListeners() {
     const dialog = document.getElementById("pokemonDialog");
