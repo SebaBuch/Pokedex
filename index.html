@@ -8,9 +8,6 @@
     <link rel="stylesheet" href="fonts.css">
     <link rel="stylesheet" href="style.css">
     <link rel="shortcut icon" href="assets/icon/pokemon-icon.png" type="image/x-icon">
-    <script src="db.js"></script>
-    <script src="template.js"></script>
-    <script src="script.js"></script>
 </head>
 
 <body onload="init()">
@@ -18,13 +15,20 @@
         <div class="header-inner">
             <div class="logo">
                 <span class="logo-lens"></span>
+                <span class="logo-lights">
+                    <span class="light light-red"></span>
+                    <span class="light light-yellow"></span>
+                    <span class="light light-green"></span>
+                </span>
                 <h1 class="logo-title">Pokédex</h1>
             </div>
             <div class="search-bar">
                 <input data-id="search-input" id="searchInput" class="search-input" type="text"
-                    placeholder="Search Pokémon" oninput="checkSearchInput()" onkeydown="handleSearchKey(event)">
+                    placeholder="Search Pokémon" autocomplete="off" oninput="checkSearchInput()"
+                    onkeydown="handleSearchKey(event)">
                 <button data-id="search-button" id="searchButton" class="search-button" onclick="searchPokemon()"
                     disabled>Search</button>
+                <ul id="suggestionList" class="suggestion-list d-none"></ul>
             </div>
         </div>
         <nav id="typeButtons" class="type-buttons"></nav>
@@ -44,6 +48,10 @@
     </div>
 
     <dialog data-id="dialog" id="pokemonDialog" class="pokemon-dialog"></dialog>
+
+    <script src="db.js"></script>
+    <script src="template.js"></script>
+    <script src="script.js"></script>
 </body>
 
 </html>
