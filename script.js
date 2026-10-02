@@ -5,6 +5,8 @@ let entriesRequest = null;
 let searchResultNames = [];
 let searchMatches = [];
 let dialogEntries = [];
+let evolutionCache = {};
+let activeDialogTab = "stats";
 let displayedNames = [];
 let currentOffset = 0;
 let currentDialogIndex = 0;
@@ -131,9 +133,12 @@ async function requestAllPokemonEntries() {
     }
 }
 
+function getIdFromUrl(url) {
+    return Number(url.split("/").filter(Boolean).pop());
+}
+
 function isBasePokemon(entry) {
-    const id = Number(entry.url.split("/").filter(Boolean).pop());
-    return id < FORM_ID_START;
+    return getIdFromUrl(entry.url) < FORM_ID_START;
 }
 
 async function fetchAllDetails(pokemonList) {
@@ -157,9 +162,25 @@ function reducePokemonData(data) {
         name: data.name,
         types: data.types.map((entry) => entry.type.name),
         image: getPokemonImage(data.sprites),
-        hp: getStatValue(data.stats, "hp"),
-        attack: getStatValue(data.stats, "attack"),
-        defense: getStatValue(data.stats, "defense")
+        speciesUrl: data.species.url,
+        stats: getBaseStats(data.stats),
+        body: getBodyData(data)
+    };
+}
+
+function getBaseStats(stats) {
+    return {
+        hp: getStatValue(stats, "hp"),
+        attack: getStatValue(stats, "attack"),
+        defense: getStatValue(stats, "defense")
+    };
+}
+
+function getBodyData(data) {
+    return {
+        height: data.height / 10,
+        weight: data.weight / 10,
+        abilities: data.abilities.map((entry) => entry.ability.name)
     };
 }
 
@@ -325,8 +346,8 @@ async function openDialog(index) {
     const name = displayedNames[index];
     dialogEntries = [];
     await runWithLoading(loadDialogEntries);
-    if (dialogEntries.length === 0) dialogEntries = getDisplayedEntries();
-    currentDialogIndex = dialogEntries.findIndex((entry) => entry.name === name);
+    currentDialogIndex = findDialogIndex(name);
+    activeDialogTab = "stats";
     renderDialogContent();
     lockScroll();
     document.getElementById("pokemonDialog").showModal();
@@ -342,13 +363,26 @@ async function getNavigationEntries() {
     return await fetchAllPokemonEntries();
 }
 
+function findDialogIndex(name) {
+    let foundIndex = dialogEntries.findIndex((entry) => entry.name === name);
+    if (foundIndex === -1) {
+        dialogEntries = getDisplayedEntries();
+        foundIndex = dialogEntries.findIndex((entry) => entry.name === name);
+    }
+    return foundIndex;
+}
+
 function getDisplayedEntries() {
     return displayedNames.map((name) => ({ name: name, url: "" }));
 }
 
+function getCurrentDialogPokemon() {
+    return pokemonCache[dialogEntries[currentDialogIndex].name];
+}
+
 function renderDialogContent() {
-    const pokemon = pokemonCache[dialogEntries[currentDialogIndex].name];
-    document.getElementById("pokemonDialog").innerHTML = getDialogTemplate(pokemon);
+    const pokemon = getCurrentDialogPokemon();
+    document.getElementById("pokemonDialog").innerHTML = getDialogTemplate(pokemon, activeDialogTab);
 }
 
 function closeDialog() {
@@ -366,17 +400,26 @@ async function showPreviousPokemon() {
 }
 
 async function showDialogPokemon(index) {
-    if (isLoading) return;
+    await runDialogTask(() => loadDialogPokemon(index));
+}
+
+async function loadDialogPokemon(index) {
     const entry = dialogEntries[index];
+    await fetchPokemonDetails(entry.name, entry.url);
+    currentDialogIndex = index;
+    await loadTabDataIfNeeded();
+}
+
+async function runDialogTask(task) {
+    if (isLoading) return;
     setDialogLoading(true);
     try {
-        await fetchPokemonDetails(entry.name, entry.url);
-        currentDialogIndex = index;
-        saveCacheToStorage();
+        await task();
     } catch (error) {
         console.error(error);
     }
     setDialogLoading(false);
+    saveCacheToStorage();
     renderDialogContent();
 }
 
@@ -384,6 +427,62 @@ function setDialogLoading(state) {
     isLoading = state;
     document.querySelectorAll(".nav-button").forEach((button) => (button.disabled = state));
     document.getElementById("pokemonDialog").classList.toggle("dialog-loading", state);
+}
+
+async function showDialogTab(tab) {
+    if (isLoading) return;
+    activeDialogTab = tab;
+    await runDialogTask(loadTabDataIfNeeded);
+}
+
+async function loadTabDataIfNeeded() {
+    const pokemon = getCurrentDialogPokemon();
+    if (activeDialogTab === "stats") return;
+    if (!pokemon.species) pokemon.species = await fetchSpecies(pokemon.speciesUrl);
+    if (activeDialogTab === "evolution" && !pokemon.evolution) {
+        pokemon.evolution = await fetchEvolution(pokemon.species.evolutionUrl);
+    }
+}
+
+async function fetchSpecies(url) {
+    const response = await fetch(url, { method: "GET" });
+    if (!response.ok) throw new Error(`Species request failed: ${response.status}`);
+    const data = await response.json();
+    return {
+        category: getEnglishGenus(data.genera),
+        genderRate: data.gender_rate,
+        evolutionUrl: data.evolution_chain ? data.evolution_chain.url : ""
+    };
+}
+
+function getEnglishGenus(genera) {
+    const genus = genera.find((entry) => entry.language.name === "en");
+    return genus ? genus.genus : "Unknown";
+}
+
+async function fetchEvolution(url) {
+    if (!url) return [];
+    if (evolutionCache[url]) return evolutionCache[url];
+    const response = await fetch(url, { method: "GET" });
+    if (!response.ok) throw new Error(`Evolution request failed: ${response.status}`);
+    const data = await response.json();
+    evolutionCache[url] = collectEvolutionStages(data.chain);
+    return evolutionCache[url];
+}
+
+function collectEvolutionStages(chain) {
+    const stages = [];
+    let currentLevel = [chain];
+    while (currentLevel.length > 0) {
+        stages.push(currentLevel.map((link) => getEvolutionMember(link.species)));
+        currentLevel = currentLevel.flatMap((link) => link.evolves_to);
+    }
+    return stages;
+}
+
+function getEvolutionMember(species) {
+    const id = getIdFromUrl(species.url);
+    return { name: species.name, image: `${ARTWORK_URL}/${id}.png` };
 }
 
 function lockScroll() {
@@ -397,4 +496,3 @@ function unlockScroll() {
     document.body.style.top = "";
     window.scrollTo(0, savedScrollPosition);
 }
-
